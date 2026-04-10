@@ -1,0 +1,74 @@
+import streamlit as st
+import sqlite3
+from auth import criar_tabelas, cadastrar, login
+
+st.set_page_config(page_title="Agro SaaS", layout="wide")
+
+criar_tabelas()
+
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+menu = ["Login", "Cadastrar"]
+choice = st.sidebar.selectbox("Menu", menu)
+
+if choice == "Cadastrar":
+    st.title("Cadastro")
+    user = st.text_input("Usuário")
+    password = st.text_input("Senha", type="password")
+    if st.button("Cadastrar"):
+        if cadastrar(user, password):
+            st.success("Usuário criado!")
+        else:
+            st.error("Usuário já existe")
+
+elif choice == "Login":
+    st.title("Login")
+    user = st.text_input("Usuário")
+    password = st.text_input("Senha", type="password")
+    if st.button("Entrar"):
+        if login(user, password):
+            st.session_state.user = user
+            st.success("Logado!")
+        else:
+            st.error("Erro no login")
+
+if st.session_state.user:
+    st.sidebar.success(f"Logado como {st.session_state.user}")
+    menu2 = ["Fazendas", "Talhões", "NDVI"]
+    escolha = st.sidebar.selectbox("Sistema", menu2)
+
+    conn = sqlite3.connect("database.db")
+    c = conn.cursor()
+
+    if escolha == "Fazendas":
+        st.title("Cadastro de Fazenda")
+        nome = st.text_input("Nome da Fazenda")
+        if st.button("Salvar Fazenda"):
+            c.execute("INSERT INTO fazendas (nome, user) VALUES (?,?)", (nome, st.session_state.user))
+            conn.commit()
+            st.success("Salvo!")
+
+        st.subheader("Minhas Fazendas")
+        for row in c.execute("SELECT * FROM fazendas WHERE user=?", (st.session_state.user,)):
+            st.write(row)
+
+    if escolha == "Talhões":
+        st.title("Cadastro de Talhão")
+        nome = st.text_input("Nome do Talhão")
+        if st.button("Salvar Talhão"):
+            c.execute("INSERT INTO talhoes (nome, user) VALUES (?,?)", (nome, st.session_state.user))
+            conn.commit()
+            st.success("Salvo!")
+
+        st.subheader("Meus Talhões")
+        for row in c.execute("SELECT * FROM talhoes WHERE user=?", (st.session_state.user,)):
+            st.write(row)
+
+    if escolha == "NDVI":
+        st.title("Análise NDVI")
+        file = st.file_uploader("Envie imagem NDVI")
+        if file:
+            st.image(file, caption="Imagem enviada")
+
+    conn.close()
